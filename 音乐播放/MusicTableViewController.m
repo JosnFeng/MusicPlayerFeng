@@ -45,6 +45,8 @@
 
 @property (nonatomic, strong) UITableView *musicTableView;
 @property (nonatomic, strong) RightTabbleView *rightView;
+
+@property (nonatomic, strong) NSTimer *timer;
 @end
 
 @implementation MusicTableViewController
@@ -103,14 +105,21 @@
     
     [self initLRC];
     //设置监控 每秒刷新一次时间
-    [NSTimer scheduledTimerWithTimeInterval:0.1f
-                                     target:self
-                                   selector:@selector(showTime)
-                                   userInfo:nil
-                                    repeats:YES];
+    self.timer = [NSTimer timerWithTimeInterval:1.0f
+                                         target:self
+                                       selector:@selector(showTime) userInfo:nil
+                                        repeats:YES];
+    [[NSRunLoop currentRunLoop] addTimer:self.timer forMode:NSDefaultRunLoopMode];
+    [self.timer fire];
+//    [NSTimer scheduledTimerWithTimeInterval:1.0f
+//                                     target:self
+//                                   selector:@selector(showTime)
+//                                   userInfo:nil
+//                                    repeats:YES];
 }
 #pragma mark 0.1秒一次更新 播放时间 播放进度条 歌词 歌曲 自动播放下一首
 - (void)showTime {
+//    NSLog(@"计时器");
     //动态更新进度条时间
     if ((int)audioPlayer.currentTime % 60 < 10) {
         self.currentTimeLabel.text = [NSString stringWithFormat:@"%d:0%d",(int)audioPlayer.currentTime / 60, (int)audioPlayer.currentTime % 60];
@@ -128,31 +137,42 @@
     [self displaySondWord:audioPlayer.currentTime];//调用歌词函数
     
 //     NSLog(@"%f",self.playSlider.value);
+    NSString *timeStr = [NSString stringWithFormat:@"%0.2f", self.playSlider.value];
+    NSLog(@"%@", timeStr);
     //如果播放完，调用自动播放下一首
-    if (audioPlayer.isPlaying == YES) {
+    if ([timeStr floatValue] == 1.00) {
+//        [self.timer invalidate];
+        //停止定时器
+        [self.timer setFireDate:[NSDate distantFuture]];
+        NSLog(@"播放结束");
+//        [timeArray removeAllObjects];
+        [audioPlayer pause];
+//        audioPlayer.currentTime = 0;
+//        isPlay = YES;
+        
+//        [self performSelector:@selector(autoPlay) withObject:nil afterDelay:1];
+        
         [self autoPlay];
+//        [self handleNext];
     }
     
     
 }
 #pragma mark 自动进入下一首
 - (void)autoPlay {
+//    [self.timer fire];
     //判断是否允许循环播放
     if (isCircle == YES) {
         if (musicArrayNumber == musicArray.count - 1) {
             musicArrayNumber = -1;
         }
         musicArrayNumber++;
-        
-        [self updatePlayerSetting];
-        
     } else {//随机播放
         musicArrayNumber = arc4random() % 3;
-        [self updatePlayerSetting];
-//        [audioPlayer play];
-//        [self.playBtn setBackgroundImage:[UIImage imageNamed:@"play.png"] forState:UIControlStateNormal];
-//        isPlay = NO;
+//        [self updatePlayerSetting];
     }
+    NSLog(@"下一首");
+    [self updatePlayerSetting];
 }
 //更新播放器设置
 - (void)updatePlayerSetting {
@@ -168,7 +188,9 @@
     //重新载入歌词词典
     timeArray = [[NSMutableArray alloc] initWithCapacity:10];
     LRCDictionary = [[NSMutableDictionary alloc] initWithCapacity:10];
+    [self.timer setFireDate:[NSDate  distantPast]];
     [self initLRC];
+    
     
     [audioPlayer play];
 }
@@ -256,7 +278,7 @@
 - (UIImageView *)bgImage {
     if (!_bgImage) {
         _bgImage = [[UIImageView alloc] initWithFrame:CGRectMake(0, 64, kScreenWidth, kScreenHeight - 64)];
-        _bgImage.image = [UIImage imageNamed:@"wlz.JPG"];
+//        _bgImage.image = [UIImage imageNamed:@"wlz.JPG"];
         _bgImage.userInteractionEnabled = YES;
     }
     return _bgImage;
@@ -360,7 +382,7 @@
 //        _nextBtn.backgroundColor = [UIColor redColor];
         _nextBtn.frame = CGRectMake(self.playBtn.right + 40, self.cicleBtn.top, kWidth, kWidth);
         [_nextBtn setImage:[UIImage imageNamed:@"nextMusic"] forState:(UIControlStateNormal)];
-        [_nextBtn addTarget:self action:@selector(handleNext:) forControlEvents:(UIControlEventTouchUpInside)];
+        [_nextBtn addTarget:self action:@selector(handleNext) forControlEvents:(UIControlEventTouchUpInside)];
     }
     return _nextBtn;
 }
@@ -387,7 +409,7 @@
 
 }
 //下一曲
-- (void)handleNext:(UIButton *)sender {
+- (void)handleNext {
     if (musicArrayNumber == musicArray.count - 1) {
         musicArrayNumber = -1;
     }
@@ -397,10 +419,8 @@
 }
 //播放
 - (void)handlePlayOrPause:(UIButton *)sender {
-//    sender.selected = !sender.selected;
     if (isPlay) {
         [_playBtn setImage:[UIImage imageNamed:@"pause"] forState:(UIControlStateNormal)];
-//        isPlay = YES;
         [audioPlayer play];
         isPlay = NO;
     } else {
